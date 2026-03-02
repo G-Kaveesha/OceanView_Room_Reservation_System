@@ -5,6 +5,8 @@
 <%@ page import="java.sql.Timestamp" %>
 <%@ page import="dao.ReservationDAO" %>
 <%@ page import="model.ReservationRequest" %>
+<%@ page import="dao.InvoiceDAO" %>
+<%@ page import="model.Invoice" %>
 
 <%
   String flashMsg = (String) session.getAttribute("flashMsg");
@@ -86,7 +88,28 @@
         newMsgCount = 0;
     }
 %>
+<%
+    List<Invoice> invoiceMsgs = null;
+    int newInvoiceCount = 0;
 
+    try {
+        InvoiceDAO idao = new InvoiceDAO();
+
+        invoiceMsgs = idao.getInvoicesByGuestEmail(guestEmail);
+
+        Timestamp lastSeen = (Timestamp) session.getAttribute("msgLastSeen");
+        if (lastSeen == null) lastSeen = new Timestamp(0);
+
+        newInvoiceCount = idao.countInvoicesUpdatedAfter(guestEmail, lastSeen);
+
+    } catch (Exception ex) {
+        ex.printStackTrace();
+        invoiceMsgs = new ArrayList<>();
+        newInvoiceCount = 0;
+    }
+
+    int totalNewMsgCount = newMsgCount + newInvoiceCount;
+%>
 <%
     List<ReservationRequest> myReservations =
             (List<ReservationRequest>) request.getAttribute("myReservations");
@@ -619,23 +642,28 @@
           </span>
         </li>
 
-        <li class="nav-item ms-lg-2">
-          <button class="btn position-relative"
-                  type="button"
-                  data-bs-toggle="offcanvas"
-                  data-bs-target="#messagesCanvas"
-                  aria-controls="messagesCanvas"
-                  style="border:1px solid rgba(0,0,0,.10); border-radius:14px; background:rgba(255,255,255,.55); height:44px; padding:0 14px;">
-            <i class="bi bi-envelope"></i>
-            <% if (newMsgCount > 0) { %>
-              <span id="msgBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                <%= newMsgCount %>
-              </span>
-            <% } else { %>
-              <span id="msgBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span>
-            <% } %>
-          </button>
-        </li>
+<li class="nav-item ms-lg-2">
+  <button class="btn position-relative"
+          type="button"
+          data-bs-toggle="offcanvas"
+          data-bs-target="#messagesCanvas"
+          aria-controls="messagesCanvas"
+          style="border:1px solid rgba(0,0,0,.10); border-radius:14px; background:rgba(255,255,255,.55); height:44px; padding:0 14px;">
+    <i class="bi bi-envelope"></i>
+
+    <% if (totalNewMsgCount > 0) { %>
+      <span id="msgBadge"
+            class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+        <%= totalNewMsgCount %>
+      </span>
+    <% } else { %>
+      <span id="msgBadge"
+            class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">
+        0
+      </span>
+    <% } %>
+  </button>
+</li>
 
         <li class="nav-item ms-lg-2">
           <a class="btn btn-ovr" href="<%= request.getContextPath() %>/LogoutServlet">
@@ -1205,29 +1233,37 @@
 </div>
 
 <!-- MESSAGES OFFCANVAS -->
-<div class="offcanvas offcanvas-end" tabindex="-1" id="messagesCanvas" aria-labelledby="messagesCanvasLabel"
-     style="width:380px;">
-  <div class="offcanvas-header" style="background: linear-gradient(90deg, rgba(0,220,210,.95), rgba(0,150,255,.95)); color:#fff;">
+<div class="offcanvas offcanvas-end" tabindex="-1" id="messagesCanvas"
+     aria-labelledby="messagesCanvasLabel" style="width:380px;">
+
+  <div class="offcanvas-header"
+       style="background: linear-gradient(90deg, rgba(0,220,210,.95), rgba(0,150,255,.95)); color:#fff;">
     <h5 class="offcanvas-title" id="messagesCanvasLabel" style="font-weight:700;">
       <i class="bi bi-bell me-2"></i>Messages
     </h5>
-    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+    <button type="button" class="btn-close btn-close-white"
+            data-bs-dismiss="offcanvas"></button>
   </div>
 
   <div class="offcanvas-body" style="background: rgba(255,255,255,.70);">
+
+    <!-- ================= RESERVATION MESSAGES ================= -->
+
     <% if (confirmedMsgs == null || confirmedMsgs.isEmpty()) { %>
-      <div class="p-3" style="border-radius:16px; background:rgba(255,255,255,.75); border:1px solid rgba(0,0,0,.08);">
-        <div style="font-weight:600;">No messages yet</div>
-        <div style="color:rgba(0,0,0,.65); margin-top:6px;">
-        </div>
+      <div class="p-3"
+           style="border-radius:16px; background:rgba(255,255,255,.75);
+                  border:1px solid rgba(0,0,0,.08);">
+        <div style="font-weight:600;">No reservation messages yet</div>
       </div>
     <% } else { %>
 
       <div class="d-grid gap-2">
         <% for (ReservationRequest rr : confirmedMsgs) { %>
           <div class="p-3"
-               style="border-radius:16px; background:rgba(255,255,255,.85); border:1px solid rgba(0,0,0,.08);
+               style="border-radius:16px; background:rgba(255,255,255,.85);
+                      border:1px solid rgba(0,0,0,.08);
                       box-shadow:0 10px 24px rgba(0,0,0,.06);">
+
             <div style="display:flex; justify-content:space-between; gap:10px;">
               <div style="font-weight:600;">
                 Reservation Confirmed ✅
@@ -1238,9 +1274,12 @@
             </div>
 
             <div style="margin-top:8px; color:rgba(0,0,0,.72); line-height:1.45;">
-              Hello <span style="font-weight:600;"><%= (rr.getGuestName() == null ? "Guest" : rr.getGuestName()) %></span>,
-              welcome to Ocean View Resort! 🌊<br/>
-              Your reservation for <span style="font-weight:600;">Room <%= rr.getRoomNumber() %></span> is confirmed.
+              Hello <span style="font-weight:600;">
+              <%= (rr.getGuestName() == null ? "Guest" : rr.getGuestName()) %>
+              </span>, welcome to Ocean View Resort 🌊<br/>
+              Your reservation for
+              <span style="font-weight:600;">Room <%= rr.getRoomNumber() %></span> is confirmed.
+
               <div style="margin-top:8px;">
                 <i class="bi bi-calendar-event me-1"></i>
                 Check-in: <span style="font-weight:600;"><%= rr.getCheckInDate() %></span><br/>
@@ -1250,13 +1289,83 @@
             </div>
 
             <div style="margin-top:10px; color:rgba(0,0,0,.60); font-size:.9rem;">
-              We look forward to hosting you. If you need changes, please contact reception.
+              We look forward to hosting you.
             </div>
           </div>
         <% } %>
       </div>
 
     <% } %>
+
+    <!-- ================= INVOICE SECTION ================= -->
+
+    <hr style="opacity:.18;">
+
+    <div class="mb-2"
+         style="font-weight:700; color:rgba(0,0,0,.75);">
+      <i class="bi bi-receipt-cutoff me-2"></i>Invoices
+    </div>
+
+    <% if (invoiceMsgs == null || invoiceMsgs.isEmpty()) { %>
+
+      <div class="p-3"
+           style="border-radius:16px; background:rgba(255,255,255,.75);
+                  border:1px solid rgba(0,0,0,.08);">
+        <div style="font-weight:600;">No invoices yet</div>
+        <div style="color:rgba(0,0,0,.65); margin-top:6px;">
+          After check-out, your invoice CSV will appear here.
+        </div>
+      </div>
+
+    <% } else { %>
+
+      <div class="d-grid gap-2">
+
+        <% for (Invoice inv : invoiceMsgs) { %>
+
+          <div class="p-3"
+               style="border-radius:16px; background:rgba(255,255,255,.85);
+                      border:1px solid rgba(0,0,0,.08);
+                      box-shadow:0 10px 24px rgba(0,0,0,.06);">
+
+            <div style="display:flex; justify-content:space-between; gap:10px;">
+              <div style="font-weight:600;">Invoice Ready ✅</div>
+              <div style="color:rgba(0,0,0,.55); font-size:.85rem;">
+                #<%= inv.getInvoiceId() %>
+              </div>
+            </div>
+
+            <div style="margin-top:8px; color:rgba(0,0,0,.72); line-height:1.45;">
+              Your check-out invoice is available.<br/>
+              Reservation:
+              <span style="font-weight:600;">
+                RES-<%= inv.getReservationId() %>
+              </span><br/>
+              Total:
+              <span style="font-weight:600;">
+                Rs. <%= String.format("%.2f", inv.getTotalAmount()) %>
+              </span>
+            </div>
+
+            <div class="mt-2 d-flex gap-2">
+              <a class="btn btn-sm btn-ovr"
+   href="<%= request.getContextPath() %>/CustomerInvoicePdfServlet?invoiceId=<%= inv.getInvoiceId() %>">
+  <i class="bi bi-file-earmark-pdf me-1"></i>Download PDF
+</a>
+            </div>
+
+            <div style="margin-top:10px; color:rgba(0,0,0,.60); font-size:.9rem;">
+              Updated: <%= (inv.getUpdatedAt() == null ? "-" : inv.getUpdatedAt()) %>
+            </div>
+
+          </div>
+
+        <% } %>
+
+      </div>
+
+    <% } %>
+
   </div>
 </div>
 

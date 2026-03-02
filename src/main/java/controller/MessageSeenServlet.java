@@ -1,14 +1,11 @@
 package controller;
 
-import java.io.IOException;
-import java.sql.Timestamp;
-
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.*;
+
+import java.io.IOException;
+import java.sql.Timestamp;
 
 @WebServlet("/MessageSeenServlet")
 public class MessageSeenServlet extends HttpServlet {
@@ -21,6 +18,7 @@ public class MessageSeenServlet extends HttpServlet {
         if (session != null) {
             session.setAttribute("msgLastSeen", new Timestamp(System.currentTimeMillis()));
         }
+
         response.setStatus(HttpServletResponse.SC_NO_CONTENT);
     }
 }

@@ -3,12 +3,19 @@ package dao;
 import model.*;
 import util.DBUtil;
 
+import jakarta.servlet.http.HttpServletResponse;
+
+import java.io.PrintWriter;
+import java.math.RoundingMode;
 import java.sql.*;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
-import jakarta.servlet.http.HttpServletResponse;
+
+// ✅ OpenPDF (add jar to WEB-INF/lib)
+import com.lowagie.text.*;
+import com.lowagie.text.pdf.*;
 
 public class InvoiceDAO {
 
@@ -18,6 +25,240 @@ public class InvoiceDAO {
             "rm.nightly_rate " +
             "FROM reservations r JOIN rooms rm ON r.room_id = rm.room_id " +
             "WHERE r.reservation_id = ?";
+
+    // =========================================================
+    // CUSTOMER NOTIFICATIONS (NO NEW TABLES)
+    // =========================================================
+
+    // ✅ List invoices by guest email (for notification section)
+    public List<Invoice> getInvoicesByGuestEmail(String email) throws Exception {
+
+        String sql =
+                "SELECT i.invoice_id, i.reservation_id, i.total_amount, i.issued_at " +
+                "FROM invoices i " +
+                "JOIN reservations r ON r.reservation_id = i.reservation_id " +
+                "WHERE r.guest_email = ? " +
+                "ORDER BY i.issued_at DESC, i.invoice_id DESC";
+
+        List<Invoice> list = new ArrayList<>();
+
+        try (Connection con = DBUtil.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, email);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Invoice inv = new Invoice();
+                    inv.setInvoiceId(rs.getInt("invoice_id"));
+                    inv.setReservationId(rs.getInt("reservation_id"));
+                    inv.setTotalAmount(rs.getBigDecimal("total_amount"));
+                    inv.setIssuedAt(rs.getTimestamp("issued_at"));
+                    list.add(inv);
+                }
+            }
+        }
+        return list;
+    }
+
+    // ✅ Count invoices updated/issued after lastSeen (badge count)
+    // uses issued_at as notification time
+    public int countInvoicesUpdatedAfter(String email, Timestamp lastSeen) throws Exception {
+
+        String sql =
+                "SELECT COUNT(*) " +
+                "FROM invoices i " +
+                "JOIN reservations r ON r.reservation_id = i.reservation_id " +
+                "WHERE r.guest_email = ? " +
+                "AND COALESCE(i.issued_at, NOW()) > ?";
+
+        try (Connection con = DBUtil.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, email);
+            ps.setTimestamp(2, lastSeen);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
+        }
+    }
+
+    // ✅ Security check: invoice belongs to logged-in guest email (UPDATED method)
+    public boolean invoiceBelongsToEmail(int invoiceId, String guestEmail) throws Exception {
+
+        final String sql =
+                "SELECT COUNT(*) " +
+                "FROM invoices i " +
+                "JOIN reservations r ON r.reservation_id = i.reservation_id " +
+                "WHERE i.invoice_id = ? AND r.guest_email = ?";
+
+        try (Connection con = DBUtil.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setInt(1, invoiceId);
+            ps.setString(2, guestEmail);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                int count = rs.next() ? rs.getInt(1) : 0;
+                return count > 0;
+            }
+        }
+    }
+
+    // =========================================================
+    // CSV DOWNLOAD (KEEPED as you had)
+    // =========================================================
+
+    public void writeInvoiceCsv(HttpServletResponse response, int invoiceId) throws Exception {
+
+        response.setContentType("text/csv; charset=UTF-8");
+        response.setHeader("Content-Disposition", "attachment; filename=invoice_" + invoiceId + ".csv");
+
+        final String sqlInv =
+                "SELECT i.invoice_id, i.reservation_id, i.nights, i.room_rate, i.room_cost, " +
+                "i.extras_total, i.service_charge, i.tax_amount, i.discount, i.total_amount, " +
+                "i.invoice_status, i.issued_at " +
+                "FROM invoices i WHERE i.invoice_id = ?";
+
+        final String sqlRes =
+                "SELECT reservation_id, room_number, guest_name, guest_phone, guest_email, " +
+                "check_in_date, check_out_date, number_of_guests " +
+                "FROM reservations WHERE reservation_id = ?";
+
+        final String sqlPay =
+                "SELECT payment_method, amount_paid, payment_status, received_by, created_at " +
+                "FROM payments WHERE invoice_id = ? " +
+                "ORDER BY payment_id DESC LIMIT 1";
+
+        final String sqlItems =
+                "SELECT item_name, qty, unit_price, amount, note " +
+                "FROM invoice_items WHERE invoice_id = ? " +
+                "ORDER BY item_id DESC";
+
+        try (Connection con = DBUtil.getConnection();
+             PrintWriter out = response.getWriter()) {
+
+            int reservationId;
+
+            // 1) invoice row
+            try (PreparedStatement ps = con.prepareStatement(sqlInv)) {
+                ps.setInt(1, invoiceId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (!rs.next()) {
+                        out.println("Invoice not found");
+                        return;
+                    }
+
+                    reservationId = rs.getInt("reservation_id");
+
+                    out.println("Invoice Summary");
+                    out.println("Invoice ID,Reservation ID,Nights,Room Rate,Room Cost,Extras Total,Service Charge,Tax Amount,Discount,Total Amount,Status,Issued At");
+
+                    out.printf("%d,%d,%d,%s,%s,%s,%s,%s,%s,%s,%s,%s%n",
+                            rs.getInt("invoice_id"),
+                            reservationId,
+                            rs.getInt("nights"),
+                            rs.getBigDecimal("room_rate"),
+                            rs.getBigDecimal("room_cost"),
+                            rs.getBigDecimal("extras_total"),
+                            rs.getBigDecimal("service_charge"),
+                            rs.getBigDecimal("tax_amount"),
+                            rs.getBigDecimal("discount"),
+                            rs.getBigDecimal("total_amount"),
+                            safe(rs.getString("invoice_status")),
+                            String.valueOf(rs.getTimestamp("issued_at"))
+                    );
+                }
+            }
+
+            out.println();
+
+            // 2) reservation/guest info
+            out.println("Reservation Details");
+            out.println("Room Number,Guest Name,Guest Phone,Guest Email,Check In,Check Out,Guests");
+
+            try (PreparedStatement ps = con.prepareStatement(sqlRes)) {
+                ps.setInt(1, reservationId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        out.printf("%s,%s,%s,%s,%s,%s,%d%n",
+                                csv(rs.getString("room_number")),
+                                csv(rs.getString("guest_name")),
+                                csv(rs.getString("guest_phone")),
+                                csv(rs.getString("guest_email")),
+                                String.valueOf(rs.getDate("check_in_date")),
+                                String.valueOf(rs.getDate("check_out_date")),
+                                rs.getInt("number_of_guests")
+                        );
+                    }
+                }
+            }
+
+            out.println();
+
+            // 3) payment info (latest)
+            out.println("Payment Details");
+            out.println("Method,Amount Paid,Status,Received By,Created At");
+
+            try (PreparedStatement ps = con.prepareStatement(sqlPay)) {
+                ps.setInt(1, invoiceId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        out.printf("%s,%s,%s,%s,%s%n",
+                                csv(rs.getString("payment_method")),
+                                rs.getBigDecimal("amount_paid"),
+                                csv(rs.getString("payment_status")),
+                                String.valueOf(rs.getObject("received_by")),
+                                String.valueOf(rs.getTimestamp("created_at"))
+                        );
+                    } else {
+                        out.println("N/A,N/A,N/A,N/A,N/A");
+                    }
+                }
+            }
+
+            out.println();
+
+            // 4) items
+            out.println("Invoice Items");
+            out.println("Item Name,Qty,Unit Price,Amount,Note");
+
+            try (PreparedStatement ps = con.prepareStatement(sqlItems)) {
+                ps.setInt(1, invoiceId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        out.printf("%s,%d,%s,%s,%s%n",
+                                csv(rs.getString("item_name")),
+                                rs.getInt("qty"),
+                                rs.getBigDecimal("unit_price"),
+                                rs.getBigDecimal("amount"),
+                                csv(rs.getString("note"))
+                        );
+                    }
+                }
+            }
+
+            out.flush();
+        }
+    }
+
+    // ✅ CSV safe (keep)
+    private String safe(String s) { return (s == null) ? "" : s; }
+
+    // escape CSV for commas/quotes/newlines
+    private String csv(String s) {
+        if (s == null) return "";
+        String t = s.replace("\"", "\"\"");
+        if (t.contains(",") || t.contains("\n") || t.contains("\r")) {
+            return "\"" + t + "\"";
+        }
+        return t;
+    }
+
+    // =========================================================
+    // EXISTING METHODS (KEEPED - receptionist/checkout etc.)
+    // =========================================================
 
     public Invoice getOrCreateInvoiceForReservation(int reservationId) throws Exception {
         try (Connection con = DBUtil.getConnection()) {
@@ -35,7 +276,7 @@ public class InvoiceDAO {
             int nights = calcNights(rr.checkIn, rr.checkOut);
             double roomCost = rr.nightlyRate * nights;
 
-            double total = roomCost; 
+            double total = roomCost;
 
             try (PreparedStatement ps = con.prepareStatement(
                     "INSERT INTO invoices(reservation_id, nights, room_rate, room_cost, extras_total, total_amount, invoice_status) " +
@@ -130,13 +371,13 @@ public class InvoiceDAO {
             }
         }
     }
-    
+
     public int finalizeCheckoutTransaction(int reservationId, String method, double amountPaid, Integer receivedBy) throws Exception {
 
         try (Connection con = DBUtil.getConnection()) {
             con.setAutoCommit(false);
             try {
-                
+
                 int roomId;
                 try (PreparedStatement ps = con.prepareStatement(
                         "SELECT room_id, reservation_status FROM reservations WHERE reservation_id=? FOR UPDATE")) {
@@ -153,7 +394,6 @@ public class InvoiceDAO {
                 Invoice inv = getOrCreateInvoiceForReservation(reservationId);
                 int invoiceId = inv.getInvoiceId();
 
-                
                 recalcInvoiceTotals(con, invoiceId);
 
                 // insert payment
@@ -175,14 +415,14 @@ public class InvoiceDAO {
                     ps.executeUpdate();
                 }
 
-               
+                // reservation
                 try (PreparedStatement ps = con.prepareStatement(
                         "UPDATE reservations SET reservation_status='CHECKED_OUT' WHERE reservation_id=?")) {
                     ps.setInt(1, reservationId);
                     ps.executeUpdate();
                 }
 
-              
+                // room
                 try (PreparedStatement ps = con.prepareStatement(
                         "UPDATE rooms SET status='AVAILABLE' WHERE room_id=?")) {
                     ps.setInt(1, roomId);
@@ -201,12 +441,10 @@ public class InvoiceDAO {
         }
     }
 
-    
     public InvoiceBundle getInvoiceBundle(int invoiceId) throws Exception {
         Invoice inv = getInvoiceById(invoiceId);
         if (inv == null) return null;
 
-        
         ReservationRequest r;
         double rate;
 
@@ -226,7 +464,7 @@ public class InvoiceDAO {
         return b;
     }
 
-    // ---------------- helpers ----------------
+    // ---------------- helpers (KEEPED) ----------------
 
     private void recalcInvoiceTotals(Connection con, int invoiceId) throws Exception {
         double extras = 0.0;
@@ -240,8 +478,8 @@ public class InvoiceDAO {
         }
 
         double roomCost;
-        double service = 0.0; 
-        double tax = 0.0;    
+        double service = 0.0;
+        double tax = 0.0;
         double discount = 0.0;
 
         try (PreparedStatement ps = con.prepareStatement(
@@ -308,11 +546,11 @@ public class InvoiceDAO {
         LocalDate ci = checkIn.toLocalDate();
         LocalDate co = checkOut.toLocalDate();
         long n = ChronoUnit.DAYS.between(ci, co);
-        return (int) Math.max(1, n); 
+        return (int) Math.max(1, n);
     }
 
     private java.math.BigDecimal bd(double v) {
-        return new java.math.BigDecimal(v).setScale(2, java.math.RoundingMode.HALF_UP);
+        return new java.math.BigDecimal(v).setScale(2, RoundingMode.HALF_UP);
     }
 
     private Invoice mapInvoice(ResultSet rs) throws SQLException {
@@ -373,7 +611,135 @@ public class InvoiceDAO {
         double nightlyRate;
     }
 
-    public void writeInvoicePdf(jakarta.servlet.http.HttpServletResponse response, InvoiceBundle bundle) throws Exception {
-        throw new UnsupportedOperationException("Add OpenPDF/iText jar and implement PDF rendering.");
+    // =========================================================
+    // PDF DOWNLOAD (IMPLEMENTED)
+    // =========================================================
+    public void writeInvoicePdf(HttpServletResponse response, InvoiceBundle bundle) throws Exception {
+
+        int invoiceId = bundle.invoice.getInvoiceId();
+        response.setContentType("application/pdf");
+        response.setHeader("Content-Disposition", "attachment; filename=invoice_" + invoiceId + ".pdf");
+
+        Document document = new Document(PageSize.A4, 36, 36, 36, 36);
+        PdfWriter.getInstance(document, response.getOutputStream());
+
+        document.open();
+
+        // Fonts
+        Font title = new Font(Font.HELVETICA, 18, Font.BOLD);
+        Font h = new Font(Font.HELVETICA, 12, Font.BOLD);
+        Font normal = new Font(Font.HELVETICA, 11, Font.NORMAL);
+
+        // Header
+        Paragraph pTitle = new Paragraph("Ocean View Resort - Invoice", title);
+        pTitle.setAlignment(Element.ALIGN_CENTER);
+        document.add(pTitle);
+        document.add(new Paragraph(" ", normal));
+
+        // Invoice summary
+        PdfPTable summary = new PdfPTable(2);
+        summary.setWidthPercentage(100);
+        summary.setSpacingBefore(5f);
+        summary.setSpacingAfter(12f);
+        summary.setWidths(new float[]{35f, 65f});
+
+        addRowPdf(summary, "Invoice ID", String.valueOf(bundle.invoice.getInvoiceId()), h, normal);
+        addRowPdf(summary, "Reservation ID", "RES-" + bundle.invoice.getReservationId(), h, normal);
+        addRowPdf(summary, "Issued At", String.valueOf(bundle.invoice.getIssuedAt()), h, normal);
+        addRowPdf(summary, "Status", String.valueOf(bundle.invoice.getInvoiceStatus()), h, normal);
+
+        document.add(summary);
+
+        // Guest details
+        document.add(new Paragraph("Guest Details", h));
+        document.add(new Paragraph("Name: " + safePdf(bundle.reservation.getGuestName()), normal));
+        document.add(new Paragraph("Email: " + safePdf(bundle.reservation.getGuestEmail()), normal));
+        document.add(new Paragraph("Phone: " + safePdf(bundle.reservation.getGuestPhone()), normal));
+        document.add(new Paragraph("Room: " + safePdf(bundle.reservation.getRoomNumber()), normal));
+        document.add(new Paragraph("Check-in: " + String.valueOf(bundle.reservation.getCheckInDate()), normal));
+        document.add(new Paragraph("Check-out: " + String.valueOf(bundle.reservation.getCheckOutDate()), normal));
+        document.add(new Paragraph("Guests: " + bundle.reservation.getNumberOfGuests(), normal));
+        document.add(new Paragraph(" ", normal));
+
+        // Items table
+        document.add(new Paragraph("Charges", h));
+        PdfPTable items = new PdfPTable(4);
+        items.setWidthPercentage(100);
+        items.setSpacingBefore(8f);
+        items.setWidths(new float[]{50f, 15f, 15f, 20f});
+
+        addHeader(items, "Item", h);
+        addHeader(items, "Qty", h);
+        addHeader(items, "Unit Price", h);
+        addHeader(items, "Amount", h);
+
+        // Room charge row
+        addCell(items, "Room Charge (" + bundle.invoice.getNights() + " night(s))", normal);
+        addCell(items, String.valueOf(bundle.invoice.getNights()), normal);
+        addCell(items, String.valueOf(bundle.invoice.getRoomRate()), normal);
+        addCell(items, String.valueOf(bundle.invoice.getRoomCost()), normal);
+
+        // Extra invoice_items
+        if (bundle.items != null) {
+            for (InvoiceItem it : bundle.items) {
+                addCell(items, safePdf(it.getItemName()), normal);
+                addCell(items, String.valueOf(it.getQty()), normal);
+                addCell(items, String.valueOf(it.getUnitPrice()), normal);
+                addCell(items, String.valueOf(it.getAmount()), normal);
+            }
+        }
+
+        document.add(items);
+        document.add(new Paragraph(" ", normal));
+
+        // Totals
+        PdfPTable totals = new PdfPTable(2);
+        totals.setWidthPercentage(60);
+        totals.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        totals.setWidths(new float[]{50f, 50f});
+
+        addRowPdf(totals, "Extras Total", String.valueOf(bundle.invoice.getExtrasTotal()), h, normal);
+        addRowPdf(totals, "Service Charge", String.valueOf(bundle.invoice.getServiceCharge()), h, normal);
+        addRowPdf(totals, "Tax", String.valueOf(bundle.invoice.getTaxAmount()), h, normal);
+        addRowPdf(totals, "Discount", String.valueOf(bundle.invoice.getDiscount()), h, normal);
+        addRowPdf(totals, "TOTAL", String.valueOf(bundle.invoice.getTotalAmount()), h, normal);
+
+        document.add(totals);
+
+        document.add(new Paragraph(" ", normal));
+        Paragraph thanks = new Paragraph("Thank you for staying with Ocean View Resort!", normal);
+        thanks.setAlignment(Element.ALIGN_CENTER);
+        document.add(thanks);
+
+        document.close();
+    }
+
+    // =========================================================
+    // PDF helpers (NEW)
+    // =========================================================
+    private static String safePdf(String s) {
+        return (s == null) ? "" : s;
+    }
+
+    private static void addHeader(PdfPTable t, String text, Font f) {
+        PdfPCell c = new PdfPCell(new Phrase(text, f));
+        c.setBackgroundColor(new java.awt.Color(235, 245, 255));
+        c.setPadding(8f);
+        t.addCell(c);
+    }
+
+    private static void addCell(PdfPTable t, String text, Font f) {
+        PdfPCell c = new PdfPCell(new Phrase(text == null ? "" : text, f));
+        c.setPadding(8f);
+        t.addCell(c);
+    }
+
+    private static void addRowPdf(PdfPTable t, String k, String v, Font kf, Font vf) {
+        PdfPCell c1 = new PdfPCell(new Phrase(k, kf));
+        c1.setPadding(8f);
+        PdfPCell c2 = new PdfPCell(new Phrase(v == null ? "" : v, vf));
+        c2.setPadding(8f);
+        t.addCell(c1);
+        t.addCell(c2);
     }
 }
