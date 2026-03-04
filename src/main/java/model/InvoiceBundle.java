@@ -1,22 +1,14 @@
-// File: src/model/InvoiceBundle.java
 package model;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Convenience wrapper for printing:
- * - invoice header totals
- * - reservation guest + stay data
- * - nightly rate (optional convenience)
- * - invoice items list
- */
 public class InvoiceBundle {
 
     public Invoice invoice;
     public ReservationRequest reservation;
 
-    public double nightlyRate; 
+    public double nightlyRate;
 
     public List<InvoiceItem> items = new ArrayList<>();
 

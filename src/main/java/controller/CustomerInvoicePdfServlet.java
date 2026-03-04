@@ -30,7 +30,6 @@ public class CustomerInvoicePdfServlet extends HttpServlet {
 
             InvoiceDAO dao = new InvoiceDAO();
 
-            // ✅ Security: invoice must belong to this logged-in guest
             if (!dao.invoiceBelongsToEmail(invoiceId, guestEmail)) {
                 response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                 response.getWriter().write("Access denied.");
@@ -44,7 +43,6 @@ public class CustomerInvoicePdfServlet extends HttpServlet {
                 return;
             }
 
-            // ✅ Stream PDF
             dao.writeInvoicePdf(response, bundle);
 
         } catch (NumberFormatException ex) {

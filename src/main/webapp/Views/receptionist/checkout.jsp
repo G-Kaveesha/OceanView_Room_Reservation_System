@@ -203,7 +203,6 @@
                   <option>Early check-in fee</option>
                 </optgroup>
                 <optgroup label="Facilities">
-                  <option>Spa / massage</option>
                   <option>Activity / excursion fee</option>
                 </optgroup>
                 <optgroup label="Penalties">

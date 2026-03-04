@@ -14,22 +14,7 @@ import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * ReservationDAO
- * - Creates reservations (walk-in checked-in, customer pending request)
- * - Fetches reservations by status (PENDING/CONFIRMED/CHECKED_IN/etc.)
- * - Updates reservation status (confirm/cancel) with safe DB transactions
- * - Customer message support (no new tables): confirmed reservations by email + badge count
- *
- * IMPORTANT CHANGE (your new option):
- * ✅ Customer booking request does NOT set rooms.status='RESERVED'
- * ✅ Uses "date overlap validation" to prevent double booking for same room + date range
- * ✅ cancel PENDING does NOT change rooms.status (because room may have other future bookings)
- *
- * NOTE:
- * - Your DB has updated_at. For the "message badge" feature, we use updated_at.
- * - Make sure ReservationRequest has: setUpdatedAt(Timestamp) / getUpdatedAt()
- */
+
 public class ReservationDAO {
 
     //  Walk-in check-in 

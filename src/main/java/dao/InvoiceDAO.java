@@ -8,12 +8,11 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.PrintWriter;
 import java.math.RoundingMode;
 import java.sql.*;
+import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
-
-// ✅ OpenPDF (add jar to WEB-INF/lib)
 import com.lowagie.text.*;
 import com.lowagie.text.pdf.*;
 
@@ -26,11 +25,31 @@ public class InvoiceDAO {
             "FROM reservations r JOIN rooms rm ON r.room_id = rm.room_id " +
             "WHERE r.reservation_id = ?";
 
-    // =========================================================
-    // CUSTOMER NOTIFICATIONS (NO NEW TABLES)
-    // =========================================================
+    // Currency formatter 
+    private static final DecimalFormat LKR_FMT = new DecimalFormat("#,##0.00");
 
-    // ✅ List invoices by guest email (for notification section)
+    private static String money(Object v) {
+        if (v == null) return "LKR 0.00";
+        try {
+            if (v instanceof java.math.BigDecimal) {
+                return "LKR " + LKR_FMT.format(((java.math.BigDecimal) v).doubleValue());
+            }
+            if (v instanceof Number) {
+                return "LKR " + LKR_FMT.format(((Number) v).doubleValue());
+            }
+            return "LKR " + LKR_FMT.format(Double.parseDouble(String.valueOf(v)));
+        } catch (Exception e) {
+            return "LKR " + String.valueOf(v);
+        }
+    }
+
+    private static String moneyCsv(Object v) {
+        
+        return money(v);
+    }
+    
+    // CUSTOMER NOTIFICATIONS
+
     public List<Invoice> getInvoicesByGuestEmail(String email) throws Exception {
 
         String sql =
@@ -61,8 +80,6 @@ public class InvoiceDAO {
         return list;
     }
 
-    // ✅ Count invoices updated/issued after lastSeen (badge count)
-    // uses issued_at as notification time
     public int countInvoicesUpdatedAfter(String email, Timestamp lastSeen) throws Exception {
 
         String sql =
@@ -84,7 +101,6 @@ public class InvoiceDAO {
         }
     }
 
-    // ✅ Security check: invoice belongs to logged-in guest email (UPDATED method)
     public boolean invoiceBelongsToEmail(int invoiceId, String guestEmail) throws Exception {
 
         final String sql =
@@ -106,9 +122,7 @@ public class InvoiceDAO {
         }
     }
 
-    // =========================================================
-    // CSV DOWNLOAD (KEEPED as you had)
-    // =========================================================
+    // CSV DOWNLOAD
 
     public void writeInvoiceCsv(HttpServletResponse response, int invoiceId) throws Exception {
 
@@ -141,7 +155,7 @@ public class InvoiceDAO {
 
             int reservationId;
 
-            // 1) invoice row
+            // invoice row
             try (PreparedStatement ps = con.prepareStatement(sqlInv)) {
                 ps.setInt(1, invoiceId);
                 try (ResultSet rs = ps.executeQuery()) {
@@ -159,13 +173,13 @@ public class InvoiceDAO {
                             rs.getInt("invoice_id"),
                             reservationId,
                             rs.getInt("nights"),
-                            rs.getBigDecimal("room_rate"),
-                            rs.getBigDecimal("room_cost"),
-                            rs.getBigDecimal("extras_total"),
-                            rs.getBigDecimal("service_charge"),
-                            rs.getBigDecimal("tax_amount"),
-                            rs.getBigDecimal("discount"),
-                            rs.getBigDecimal("total_amount"),
+                            moneyCsv(rs.getBigDecimal("room_rate")),
+                            moneyCsv(rs.getBigDecimal("room_cost")),
+                            moneyCsv(rs.getBigDecimal("extras_total")),
+                            moneyCsv(rs.getBigDecimal("service_charge")),
+                            moneyCsv(rs.getBigDecimal("tax_amount")),
+                            moneyCsv(rs.getBigDecimal("discount")),
+                            moneyCsv(rs.getBigDecimal("total_amount")),
                             safe(rs.getString("invoice_status")),
                             String.valueOf(rs.getTimestamp("issued_at"))
                     );
@@ -174,7 +188,7 @@ public class InvoiceDAO {
 
             out.println();
 
-            // 2) reservation/guest info
+            // reservation/guest info
             out.println("Reservation Details");
             out.println("Room Number,Guest Name,Guest Phone,Guest Email,Check In,Check Out,Guests");
 
@@ -197,7 +211,7 @@ public class InvoiceDAO {
 
             out.println();
 
-            // 3) payment info (latest)
+            // payment info
             out.println("Payment Details");
             out.println("Method,Amount Paid,Status,Received By,Created At");
 
@@ -207,7 +221,7 @@ public class InvoiceDAO {
                     if (rs.next()) {
                         out.printf("%s,%s,%s,%s,%s%n",
                                 csv(rs.getString("payment_method")),
-                                rs.getBigDecimal("amount_paid"),
+                                moneyCsv(rs.getBigDecimal("amount_paid")),
                                 csv(rs.getString("payment_status")),
                                 String.valueOf(rs.getObject("received_by")),
                                 String.valueOf(rs.getTimestamp("created_at"))
@@ -220,7 +234,7 @@ public class InvoiceDAO {
 
             out.println();
 
-            // 4) items
+            // items
             out.println("Invoice Items");
             out.println("Item Name,Qty,Unit Price,Amount,Note");
 
@@ -231,8 +245,8 @@ public class InvoiceDAO {
                         out.printf("%s,%d,%s,%s,%s%n",
                                 csv(rs.getString("item_name")),
                                 rs.getInt("qty"),
-                                rs.getBigDecimal("unit_price"),
-                                rs.getBigDecimal("amount"),
+                                moneyCsv(rs.getBigDecimal("unit_price")),
+                                moneyCsv(rs.getBigDecimal("amount")),
                                 csv(rs.getString("note"))
                         );
                     }
@@ -243,10 +257,8 @@ public class InvoiceDAO {
         }
     }
 
-    // ✅ CSV safe (keep)
     private String safe(String s) { return (s == null) ? "" : s; }
 
-    // escape CSV for commas/quotes/newlines
     private String csv(String s) {
         if (s == null) return "";
         String t = s.replace("\"", "\"\"");
@@ -256,9 +268,7 @@ public class InvoiceDAO {
         return t;
     }
 
-    // =========================================================
-    // EXISTING METHODS (KEEPED - receptionist/checkout etc.)
-    // =========================================================
+    // receptionist checkout
 
     public Invoice getOrCreateInvoiceForReservation(int reservationId) throws Exception {
         try (Connection con = DBUtil.getConnection()) {
@@ -464,7 +474,7 @@ public class InvoiceDAO {
         return b;
     }
 
-    // ---------------- helpers (KEEPED) ----------------
+    // ---------------- helpers ----------------
 
     private void recalcInvoiceTotals(Connection con, int invoiceId) throws Exception {
         double extras = 0.0;
@@ -611,9 +621,7 @@ public class InvoiceDAO {
         double nightlyRate;
     }
 
-    // =========================================================
-    // PDF DOWNLOAD (IMPLEMENTED)
-    // =========================================================
+    // PDF DOWNLOAD 
     public void writeInvoicePdf(HttpServletResponse response, InvoiceBundle bundle) throws Exception {
 
         int invoiceId = bundle.invoice.getInvoiceId();
@@ -625,18 +633,15 @@ public class InvoiceDAO {
 
         document.open();
 
-        // Fonts
         Font title = new Font(Font.HELVETICA, 18, Font.BOLD);
         Font h = new Font(Font.HELVETICA, 12, Font.BOLD);
         Font normal = new Font(Font.HELVETICA, 11, Font.NORMAL);
 
-        // Header
         Paragraph pTitle = new Paragraph("Ocean View Resort - Invoice", title);
         pTitle.setAlignment(Element.ALIGN_CENTER);
         document.add(pTitle);
         document.add(new Paragraph(" ", normal));
 
-        // Invoice summary
         PdfPTable summary = new PdfPTable(2);
         summary.setWidthPercentage(100);
         summary.setSpacingBefore(5f);
@@ -647,10 +652,8 @@ public class InvoiceDAO {
         addRowPdf(summary, "Reservation ID", "RES-" + bundle.invoice.getReservationId(), h, normal);
         addRowPdf(summary, "Issued At", String.valueOf(bundle.invoice.getIssuedAt()), h, normal);
         addRowPdf(summary, "Status", String.valueOf(bundle.invoice.getInvoiceStatus()), h, normal);
-
         document.add(summary);
 
-        // Guest details
         document.add(new Paragraph("Guest Details", h));
         document.add(new Paragraph("Name: " + safePdf(bundle.reservation.getGuestName()), normal));
         document.add(new Paragraph("Email: " + safePdf(bundle.reservation.getGuestEmail()), normal));
@@ -661,7 +664,6 @@ public class InvoiceDAO {
         document.add(new Paragraph("Guests: " + bundle.reservation.getNumberOfGuests(), normal));
         document.add(new Paragraph(" ", normal));
 
-        // Items table
         document.add(new Paragraph("Charges", h));
         PdfPTable items = new PdfPTable(4);
         items.setWidthPercentage(100);
@@ -673,36 +675,33 @@ public class InvoiceDAO {
         addHeader(items, "Unit Price", h);
         addHeader(items, "Amount", h);
 
-        // Room charge row
         addCell(items, "Room Charge (" + bundle.invoice.getNights() + " night(s))", normal);
         addCell(items, String.valueOf(bundle.invoice.getNights()), normal);
-        addCell(items, String.valueOf(bundle.invoice.getRoomRate()), normal);
-        addCell(items, String.valueOf(bundle.invoice.getRoomCost()), normal);
+        addCell(items, money(bundle.invoice.getRoomRate()), normal);
+        addCell(items, money(bundle.invoice.getRoomCost()), normal);
 
-        // Extra invoice_items
         if (bundle.items != null) {
             for (InvoiceItem it : bundle.items) {
                 addCell(items, safePdf(it.getItemName()), normal);
                 addCell(items, String.valueOf(it.getQty()), normal);
-                addCell(items, String.valueOf(it.getUnitPrice()), normal);
-                addCell(items, String.valueOf(it.getAmount()), normal);
+                addCell(items, money(it.getUnitPrice()), normal);
+                addCell(items, money(it.getAmount()), normal);
             }
         }
 
         document.add(items);
         document.add(new Paragraph(" ", normal));
 
-        // Totals
         PdfPTable totals = new PdfPTable(2);
         totals.setWidthPercentage(60);
         totals.setHorizontalAlignment(Element.ALIGN_RIGHT);
         totals.setWidths(new float[]{50f, 50f});
 
-        addRowPdf(totals, "Extras Total", String.valueOf(bundle.invoice.getExtrasTotal()), h, normal);
-        addRowPdf(totals, "Service Charge", String.valueOf(bundle.invoice.getServiceCharge()), h, normal);
-        addRowPdf(totals, "Tax", String.valueOf(bundle.invoice.getTaxAmount()), h, normal);
-        addRowPdf(totals, "Discount", String.valueOf(bundle.invoice.getDiscount()), h, normal);
-        addRowPdf(totals, "TOTAL", String.valueOf(bundle.invoice.getTotalAmount()), h, normal);
+        addRowPdf(totals, "Extras Total", money(bundle.invoice.getExtrasTotal()), h, normal);
+        addRowPdf(totals, "Service Charge", money(bundle.invoice.getServiceCharge()), h, normal);
+        addRowPdf(totals, "Tax", money(bundle.invoice.getTaxAmount()), h, normal);
+        addRowPdf(totals, "Discount", money(bundle.invoice.getDiscount()), h, normal);
+        addRowPdf(totals, "TOTAL", money(bundle.invoice.getTotalAmount()), h, normal);
 
         document.add(totals);
 
@@ -714,9 +713,7 @@ public class InvoiceDAO {
         document.close();
     }
 
-    // =========================================================
-    // PDF helpers (NEW)
-    // =========================================================
+    // PDF helpers
     private static String safePdf(String s) {
         return (s == null) ? "" : s;
     }
