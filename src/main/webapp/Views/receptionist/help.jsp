@@ -454,109 +454,138 @@
           <div class="cardx-body">
             <div class="accordion help-acc" id="helpAccordion">
 
-              <div class="accordion-item help-item" data-category="reservations"
-                   data-keywords="reservation new create save guest details room type dates">
-                <h2 class="accordion-header" id="h1">
-                  <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#c1">
-                    <i class="bi bi-journal-plus me-2"></i> How to create a new reservation?
-                  </button>
-                </h2>
-                <div id="c1" class="accordion-collapse collapse show" data-bs-parent="#helpAccordion">
-                  <div class="accordion-body">
-                    <ol class="mb-0">
-                      <li>Click <b>New Reservation</b> from Dashboard or Reservations page.</li>
-                      <li>Fill guest details (name, address, contact number).</li>
-                      <li>Select room type and check-in/check-out dates.</li>
-                      <li>Verify information and click <b>Save</b>.</li>
-                      <li>System generates a unique reservation number.</li>
-                    </ol>
-                  </div>
-                </div>
-              </div>
+              <div class="accordion help-acc" id="helpAccordion">
 
-              <div class="accordion-item help-item" data-category="checkin"
-                   data-keywords="check-in checkin guest verify id documents room assign payment deposit">
-                <h2 class="accordion-header" id="h2">
-                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c2">
-                    <i class="bi bi-box-arrow-in-right me-2"></i> How to check-in a guest?
-                  </button>
-                </h2>
-                <div id="c2" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
-                  <div class="accordion-body">
-                    <ol class="mb-0">
-                      <li>Go to <b>Check-In</b> from sidebar.</li>
-                      <li>Enter reservation number or search guest name.</li>
-                      <li>Verify guest identity (ID/Passport).</li>
-                      <li>Assign room number (if not assigned).</li>
-                      <li>Collect deposit/payment if required.</li>
-                      <li>Confirm check-in.</li>
-                    </ol>
-                  </div>
-                </div>
-              </div>
+  <!-- VIEW RESERVATIONS -->
+  <div class="accordion-item help-item" data-category="reservations"
+       data-keywords="reservation view confirm cancel guest request">
+    <h2 class="accordion-header">
+      <button class="accordion-button" type="button"
+              data-bs-toggle="collapse" data-bs-target="#c1">
+        <i class="bi bi-journal-text me-2"></i> How to view reservation requests?
+      </button>
+    </h2>
 
-              <div class="accordion-item help-item" data-category="checkout"
-                   data-keywords="check-out checkout billing bill taxes service charge payment method print">
-                <h2 class="accordion-header" id="h3">
-                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c3">
-                    <i class="bi bi-receipt-cutoff me-2"></i> How to process check-out and generate bill?
-                  </button>
-                </h2>
-                <div id="c3" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
-                  <div class="accordion-body">
-                    <ol class="mb-0">
-                      <li>Open <b>Check-Out & Billing</b>.</li>
-                      <li>Enter reservation number.</li>
-                      <li>System calculates bill based on nights stayed.</li>
-                      <li>Review summary (charges/taxes).</li>
-                      <li>Select payment method.</li>
-                      <li>Print bill for guest.</li>
-                      <li>Complete checkout.</li>
-                    </ol>
-                  </div>
-                </div>
-              </div>
+    <div id="c1" class="accordion-collapse collapse show"
+         data-bs-parent="#helpAccordion">
+      <div class="accordion-body">
+        <ol class="mb-0">
+          <li>Open <b>Reservations</b> from the sidebar.</li>
+          <li>The system displays <b>Pending reservation requests</b>.</li>
+          <li>Check guest details, dates, and number of guests.</li>
+          <li>Click <b>View</b> to see the reservation information.</li>
+          <li>You can then confirm or cancel the request.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
 
-              <div class="accordion-item help-item" data-category="rooms"
-                   data-keywords="room availability room status available occupied maintenance filters book">
-                <h2 class="accordion-header" id="h4">
-                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c4">
-                    <i class="bi bi-door-open me-2"></i> How to view room availability?
-                  </button>
-                </h2>
-                <div id="c4" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
-                  <div class="accordion-body">
-                    <ol class="mb-0">
-                      <li>Go to <b>Room Status</b>.</li>
-                      <li>Check room statuses (Available, Occupied, Cleaning, Maintenance).</li>
-                      <li>Use filters to view by room type.</li>
-                      <li>Click a room to view more details.</li>
-                      <li>Book available rooms from Reservations page.</li>
-                    </ol>
-                  </div>
-                </div>
-              </div>
+  <!-- CONFIRM RESERVATION -->
+  <div class="accordion-item help-item" data-category="reservations"
+       data-keywords="confirm reservation approve booking receptionist">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed" type="button"
+              data-bs-toggle="collapse" data-bs-target="#c2">
+        <i class="bi bi-check-circle me-2"></i> How to confirm a reservation?
+      </button>
+    </h2>
 
-              <div class="accordion-item help-item" data-category="reports"
-                   data-keywords="reports daily weekly monthly custom export print date range occupancy revenue guest">
-                <h2 class="accordion-header" id="h5">
-                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#c5">
-                    <i class="bi bi-bar-chart-line me-2"></i> How to generate reports?
-                  </button>
-                </h2>
-                <div id="c5" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
-                  <div class="accordion-body">
-                    <ol class="mb-0">
-                      <li>Open <b>Reports</b>.</li>
-                      <li>Select report type (Daily/Weekly/Monthly/Custom).</li>
-                      <li>Choose date range if needed.</li>
-                      <li>Click <b>Generate</b>.</li>
-                      <li>Print or export report as required.</li>
-                    </ol>
-                  </div>
-                </div>
-              </div>
+    <div id="c2" class="accordion-collapse collapse"
+         data-bs-parent="#helpAccordion">
+      <div class="accordion-body">
+        <ol class="mb-0">
+          <li>Go to the <b>Reservations</b> page.</li>
+          <li>Select a reservation from the <b>Pending Requests</b> list.</li>
+          <li>Verify guest information and dates.</li>
+          <li>Click <b>Confirm Reservation</b>.</li>
+          <li>The reservation status changes to <b>CONFIRMED</b>.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
 
+  <!-- WALK IN CHECK IN -->
+  <div class="accordion-item help-item" data-category="checkin"
+       data-keywords="walk in check in guest without reservation">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed" type="button"
+              data-bs-toggle="collapse" data-bs-target="#c3">
+        <i class="bi bi-person-plus me-2"></i> How to check-in a walk-in guest?
+      </button>
+    </h2>
+
+    <div id="c3" class="accordion-collapse collapse"
+         data-bs-parent="#helpAccordion">
+      <div class="accordion-body">
+        <ol class="mb-0">
+          <li>Open the <b>Reservations</b> page.</li>
+          <li>Select the option <b>Walk-In Check-In</b>.</li>
+          <li>Enter guest details (name, phone, email, NIC/passport).</li>
+          <li>Select an <b>available room</b>.</li>
+          <li>Enter check-in and check-out dates.</li>
+          <li>Click <b>Create Check-In</b>.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROOM STATUS -->
+  <div class="accordion-item help-item" data-category="rooms"
+       data-keywords="room availability status available occupied cleaning maintenance">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed" type="button"
+              data-bs-toggle="collapse" data-bs-target="#c4">
+        <i class="bi bi-door-open me-2"></i> How to check room availability?
+      </button>
+    </h2>
+
+    <div id="c4" class="accordion-collapse collapse"
+         data-bs-parent="#helpAccordion">
+      <div class="accordion-body">
+        <ol class="mb-0">
+          <li>Open the <b>Rooms</b> page from the sidebar.</li>
+          <li>The system shows all rooms and their status.</li>
+          <li>Room statuses include:
+            <ul>
+              <li><b>AVAILABLE</b></li>
+              <li><b>OCCUPIED</b></li>
+              <li><b>RESERVED</b></li>
+              <li><b>CLEANING</b></li>
+              <li><b>MAINTENANCE</b></li>
+            </ul>
+          </li>
+          <li>Only <b>AVAILABLE</b> rooms can be reserved or checked-in.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHECKOUT AND BILL -->
+  <div class="accordion-item help-item" data-category="checkout"
+       data-keywords="checkout invoice bill payment room stay">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed" type="button"
+              data-bs-toggle="collapse" data-bs-target="#c5">
+        <i class="bi bi-receipt me-2"></i> How to process guest checkout?
+      </button>
+    </h2>
+
+    <div id="c5" class="accordion-collapse collapse"
+         data-bs-parent="#helpAccordion">
+      <div class="accordion-body">
+        <ol class="mb-0">
+          <li>Open the <b>Checkout</b> page.</li>
+          <li>Search the reservation using the <b>reservation ID</b>.</li>
+          <li>The system calculates the <b>number of nights</b>.</li>
+          <li>An <b>invoice</b> is generated automatically.</li>
+          <li>Record payment (Cash, Card, or Online Transfer).</li>
+          <li>Complete the checkout process.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+</div>
             </div>
           </div>
         </div>
@@ -597,7 +626,7 @@
                   <i class="bi bi-person-badge"></i>
                   <div>
                     <div class="chip-title">Front Desk Manager</div>
-                    <div class="chip-sub">+94 91 222 3344 (Ext: 100)</div>
+                    <div class="chip-sub">+94 91 123 4567 (Ext: 100)</div>
                   </div>
                 </div>
               </div>

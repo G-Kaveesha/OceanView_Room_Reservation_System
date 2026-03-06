@@ -227,7 +227,6 @@
           </a>
         <% } %>
 
-        <%-- CHECKED_OUT: show invoice actions (optional, if you store invoiceId) --%>
         <% if (isCheckedOut) { %>
           <div class="text-muted" style="font-weight:600; padding:10px 4px;">
             Guest already checked out.
