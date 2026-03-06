@@ -66,8 +66,15 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 
   <style>
-    body{ background:#f4f7fb; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:#141823; }
-    .wrap{ max-width: 920px; margin: 26px auto; padding: 0 14px; }
+    body{ background:#f4f7fb; 
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; 
+    color:#141823; 
+    }
+    .wrap{ 
+    max-width: 920px; 
+    margin: 26px auto; 
+    padding: 0 14px; 
+    }
     .cardx{ border:0; border-radius:18px; box-shadow:0 18px 45px rgba(0,0,0,.10); overflow:hidden; background:#fff; }
     .head{ padding:16px 18px; background:linear-gradient(90deg,#2f77c5,#6a5bd6); color:#fff; }
     .pill{ padding:7px 12px; border-radius:999px; background:rgba(255,255,255,.22); display:inline-flex; gap:8px; align-items:center; font-weight:600; }
@@ -227,7 +234,6 @@
           </a>
         <% } %>
 
-        <%-- CHECKED_OUT: show invoice actions (optional, if you store invoiceId) --%>
         <% if (isCheckedOut) { %>
           <div class="text-muted" style="font-weight:600; padding:10px 4px;">
             Guest already checked out.
