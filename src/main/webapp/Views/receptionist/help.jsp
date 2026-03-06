@@ -27,7 +27,6 @@
     background-attachment: fixed;
     font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   }
-
   .app-shell{ display:flex; min-height:100vh; }
 
   .sidebar{
