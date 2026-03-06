@@ -560,7 +560,7 @@
     </div>
   </div>
 
-  <!-- CHECKOUT AND BILL -->
+  <!-- checkout and bill -->
   <div class="accordion-item help-item" data-category="checkout"
        data-keywords="checkout invoice bill payment room stay">
     <h2 class="accordion-header">

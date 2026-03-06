@@ -66,7 +66,10 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 
   <style>
-    body{ background:#f4f7fb; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; color:#141823; }
+    body{ background:#f4f7fb; 
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; 
+    color:#141823; 
+    }
     .wrap{ max-width: 920px; margin: 26px auto; padding: 0 14px; }
     .cardx{ border:0; border-radius:18px; box-shadow:0 18px 45px rgba(0,0,0,.10); overflow:hidden; background:#fff; }
     .head{ padding:16px 18px; background:linear-gradient(90deg,#2f77c5,#6a5bd6); color:#fff; }
